@@ -120,58 +120,93 @@ def create_task(task: TaskCreate):
 
 @app.put("/tasks/{task_id}")
 def update_task(task_id: int, updates: dict):
-    # Find the task
-    for task in tasks:
-        if task["id"] == task_id:
+    if not updates:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Request body cannot be empty"}
+        )
 
-            # Body must not be empty
-            if not updates:
-                return JSONResponse(
-                    status_code=400,
-                    content={"error": "Request body cannot be empty"}
-                )
+    if "title" in updates:
+        if not isinstance(updates["title"], str) or not updates["title"].strip():
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Title cannot be empty"}
+            )
 
-            # Validate title if provided
-            if "title" in updates:
-                if not isinstance(updates["title"], str) or not updates["title"].strip():
-                    return JSONResponse(
-                        status_code=400,
-                        content={"error": "Title cannot be empty"}
-                    )
-                task["title"] = updates["title"].strip()
+    if "done" in updates:
+        if not isinstance(updates["done"], bool):
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Done must be true or false"}
+            )
 
-            # Validate done if provided
-            if "done" in updates:
-                if not isinstance(updates["done"], bool):
-                    return JSONResponse(
-                        status_code=400,
-                        content={"error": "Done must be true or false"}
-                    )
-                task["done"] = updates["done"]
+    if "title" not in updates and "done" not in updates:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Provide title or done"}
+        )
 
-            # At least title or done should be provided
-            if "title" not in updates and "done" not in updates:
-                return JSONResponse(
-                    status_code=400,
-                    content={"error": "Provide title or done"}
-                )
+    connection = sqlite3.connect(DATABASE)
+    connection.row_factory = sqlite3.Row
 
-            return task
+    row = connection.execute(
+        "SELECT id, title, done FROM tasks WHERE id = ?",
+        (task_id,)
+    ).fetchone()
 
-    return JSONResponse(
-        status_code=404,
-        content={"error": f"Task {task_id} not found"}
-    )
+    if row is None:
+        connection.close()
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Task not found"}
+        )
+
+    if "title" in updates and "done" in updates:
+        connection.execute(
+            "UPDATE tasks SET title = ?, done = ? WHERE id = ?",
+            (updates["title"].strip(), int(updates["done"]), task_id)
+        )
+
+    elif "title" in updates:
+        connection.execute(
+            "UPDATE tasks SET title = ? WHERE id = ?",
+            (updates["title"].strip(), task_id)
+        )
+
+    elif "done" in updates:
+        connection.execute(
+            "UPDATE tasks SET done = ? WHERE id = ?",
+            (int(updates["done"]), task_id)
+        )
+
+    connection.commit()
+
+    row = connection.execute(
+        "SELECT id, title, done FROM tasks WHERE id = ?",
+        (task_id,)
+    ).fetchone()
+
+    connection.close()
+
+    return dict(row)
 
 
 @app.delete("/tasks/{task_id}", status_code=204)
 def delete_task(task_id: int):
-    for index, task in enumerate(tasks):
-        if task["id"] == task_id:
-            tasks.pop(index)
-            return
+    connection = sqlite3.connect(DATABASE)
 
-    return JSONResponse(
-        status_code=404,
-        content={"error": f"Task {task_id} not found"}
+    cursor = connection.execute(
+        "DELETE FROM tasks WHERE id = ?",
+        (task_id,)
     )
+
+    connection.commit()
+
+    if cursor.rowcount == 0:
+        connection.close()
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Task not found"}
+        )
+
+    connection.close()
