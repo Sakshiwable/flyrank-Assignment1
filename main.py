@@ -40,13 +40,6 @@ class TaskCreate(BaseModel):
     title: str
 
 
-tasks = [
-    {"id": 1, "title": "Learn FastAPI", "done": False},
-    {"id": 2, "title": "Build CRUD API", "done": False},
-    {"id": 3, "title": "Push project to GitHub", "done": False}
-]
-
-
 @app.get("/")
 def root():
     return {
@@ -63,19 +56,36 @@ def health():
 
 @app.get("/tasks")
 def get_tasks():
-    return tasks
+    connection = sqlite3.connect(DATABASE)
+    connection.row_factory = sqlite3.Row
 
+    rows = connection.execute(
+        "SELECT id, title, done FROM tasks"
+    ).fetchall()
+
+    connection.close()
+
+    return [dict(row) for row in rows]
 
 @app.get("/tasks/{task_id}")
 def get_task(task_id: int):
-    for task in tasks:
-        if task["id"] == task_id:
-            return task
+    connection = sqlite3.connect(DATABASE)
+    connection.row_factory = sqlite3.Row
 
-    return JSONResponse(
-        status_code=404,
-        content={"error": f"Task {task_id} not found"}
-    )
+    row = connection.execute(
+        "SELECT id, title, done FROM tasks WHERE id = ?",
+        (task_id,)
+    ).fetchone()
+
+    connection.close()
+
+    if row is None:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Task not found"}
+        )
+
+    return dict(row)
 
 
 @app.post("/tasks", status_code=201)
