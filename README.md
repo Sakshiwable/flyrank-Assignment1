@@ -135,3 +135,38 @@ Successful deletion returns:
 
 C:\Users\wable\Desktop\FlyRank\task_api\swagger.png
 
+
+
+## SQLite Database
+
+This project uses SQLite for persistent data storage.
+
+SQLite was chosen because it is lightweight, requires no separate database server, and stores the database in a single file.
+
+The database file is:
+
+`tasks.db`
+
+The `tasks` table contains:
+
+| Column | Type | Description |
+|---|---|---|
+| id | INTEGER | Primary key for each task |
+| title | TEXT | Task title |
+| done | BOOLEAN | Task completion status |
+
+The database and table are created automatically when the application starts if they do not already exist.
+
+Three example tasks are inserted only when the table is empty.
+
+## Example SQL Query
+
+One SQL query executed during this assignment was:
+
+```sql
+SELECT * FROM tasks;
+
+
+C:\Users\wable\Desktop\FlyRank\task_api\Database.png
+
+
