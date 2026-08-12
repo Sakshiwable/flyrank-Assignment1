@@ -98,17 +98,25 @@ def create_task(task: TaskCreate):
             content={"error": "Title cannot be empty"}
         )
 
-    new_id = max([task["id"] for task in tasks], default=0) + 1
+    connection = sqlite3.connect(DATABASE)
+    connection.row_factory = sqlite3.Row
 
-    new_task = {
-        "id": new_id,
-        "title": title,
-        "done": False
-    }
+    cursor = connection.execute(
+        "INSERT INTO tasks (title, done) VALUES (?, ?)",
+        (title, 0)
+    )
 
-    tasks.append(new_task)
+    task_id = cursor.lastrowid
+    connection.commit()
 
-    return new_task
+    row = connection.execute(
+        "SELECT id, title, done FROM tasks WHERE id = ?",
+        (task_id,)
+    ).fetchone()
+
+    connection.close()
+
+    return dict(row)
 
 @app.put("/tasks/{task_id}")
 def update_task(task_id: int, updates: dict):
